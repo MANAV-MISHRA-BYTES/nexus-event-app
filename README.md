@@ -9,6 +9,8 @@
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 </div>
 
+Note to Judges: Due to strict local banking restrictions on cloud billing accounts for students, I was unable to deploy to Google Cloud Run. I have successfully deployed the exact same containerized architecture to Render. The live app is fully functional here: https://nexus-event-app.onrender.com
+
 <br />
 
 Welcome to **Nexus**, the ultimate lightweight hackathon application that aims to revolutionize the physical event experience. By seamlessly blending AI itinerary optimization with real-world accessibility features, Nexus brings corporate networking and event scheduling right into the future. 🚀
