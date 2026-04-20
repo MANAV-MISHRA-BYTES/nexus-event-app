@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Event Hackathon</title>
+    <!-- Tailwind CSS (via CDN to stay lightweight) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        nexus: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        }
+                    },
+                    fontFamily: {
+                        inter: ['"Inter"', 'sans-serif'],
+                        outfit: ['"Outfit"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <!-- Vue.js (via CDN) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <style>
+        body { margin: 0; background-color: #020617; font-family: 'Inter', sans-serif; color: #f8fafc; }
+        .glass-panel { background: rgba(30, 41, 59, 0.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-header { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .gradient-text { background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc); }
+        
+        /* Smooth micro-animations */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-5px); }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-20 selection:bg-nexus-500 selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 w-full z-50 glass-header shadow-2xl px-4 py-3 md:py-4">
+        <div class="max-w-2xl mx-auto flex items-center justify-between">
+            <h1 class="font-outfit font-extrabold text-2xl tracking-tight gradient-text">NEXUS</h1>
+            <span class="text-xs font-semibold bg-white/10 text-white rounded-full px-3 py-1 shadow-inner border border-white/5">Hackathon App</span>
+        </div>
+    </nav>
+
+    {% raw %}
+    <!-- Main Vue App Container -->
+    <div id="app" class="pt-24 px-4 max-w-2xl mx-auto flex flex-col gap-8 pb-12">
+
+        <!-- ROI Optimizer Section -->
+        <section class="glass-panel p-5 sm:p-7 rounded-2xl shadow-xl transition hover:shadow-2xl hover:bg-slate-800/60 duration-300">
+            <div class="mb-5">
+                <div class="flex items-center gap-3 mb-1">
+                    <span class="text-2xl" aria-hidden="true">🧠</span>
+                    <h2 class="font-outfit text-xl sm:text-2xl font-bold text-white tracking-wide">ROI Optimizer</h2>
+                </div>
+                <p class="text-slate-400 text-sm leading-relaxed">Tell our AI your ultimate event goal, and we will formulate a personalized, high-value itinerary specifically extracted from the conference schedule.</p>
+            </div>
+
+            <form @submit.prevent="generateItinerary">
+                <div class="relative group">
+                    <label for="goalInput" class="sr-only">Enter your event goal</label>
+                    <textarea 
+                        id="goalInput"
+                        v-model="goal" 
+                        rows="2" 
+                        class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 pt-3 pb-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-nexus-500 focus:border-transparent transition resize-none shadow-inner"
+                        placeholder="e.g. Master scalable AI deployments and expand my professional network..."
+                        required
+                    ></textarea>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    class="mt-4 w-full bg-gradient-to-r from-nexus-600 to-indigo-600 hover:from-nexus-500 hover:to-indigo-500 text-white font-semibold py-3 px-6 rounded-xl shadow-[0_0_15px_rgba(56,189,248,0.3)] hover:shadow-[0_0_25px_rgba(56,189,248,0.5)] transition duration-300 flex justify-center items-center gap-2 transform active:scale-95"
+                    :disabled="loading.roi"
+                >
+                    <svg v-if="loading.roi" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span v-else>Generate AI Itinerary</span>
+                    <span v-if="loading.roi">Supercharging...</span>
+                </button>
+            </form>
+
+            <!-- Error Banner -->
+            <transition name="fade">
+                <div v-if="errorMsg" class="mt-4 bg-red-900/30 border border-red-500/50 text-red-200 p-3 rounded-lg text-sm flex gap-2 items-start" role="alert">
+                    <span>⚠️</span>
+                    <p>{{ errorMsg }}</p>
+                </div>
+            </transition>
+
+            <!-- Generated AI Itinerary & Venue Navigator -->
+            <transition name="fade">
+                <div v-if="schedule.length > 0" class="mt-8">
+                    <h3 class="text-sm font-semibold tracking-wider text-nexus-400 uppercase mb-4 border-b border-white/10 pb-2">Your Optimized Schedule</h3>
+                    
+                    <div class="flex flex-col gap-4">
+                        <article v-for="(item, index) in schedule" :key="item.id" class="relative pl-6 before:absolute before:left-2 before:top-2 before:w-0.5 before:h-full before:bg-slate-700 last:before:h-0">
+                            <!-- Timeline Dot -->
+                            <div class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-nexus-500 ring-4 ring-[#020617] z-10 shadow-[0_0_8px_#38bdf8]"></div>
+                            
+                            <div class="bg-slate-800/80 border border-slate-700/50 rounded-xl p-4 sm:p-5 shadow-lg transition hover:bg-slate-800">
+                                <div class="flex flex-wrap justify-between items-start gap-2 mb-2">
+                                    <h4 class="font-outfit font-bold text-lg text-white">{{ item.session.title }}</h4>
+                                    <span class="text-xs font-semibold px-2 py-1 bg-slate-900 text-indigo-300 border border-indigo-500/30 rounded-md whitespace-nowrap">{{ item.session.time }}</span>
+                                </div>
+                                
+                                <p class="text-sm text-slate-400 font-medium mb-3 flex items-center gap-2">
+                                    <span>📍</span> {{ item.session.location }}
+                                </p>
+                                
+                                <div class="bg-slate-900/50 p-3 rounded-lg border border-white/5 mb-4 border-l-2 border-l-nexus-500">
+                                    <p class="text-sm text-slate-300 italic">"{{ item.reasoning }}"</p>
+                                </div>
+
+                                <!-- Venue Navigator Button -->
+                                <div class="flex justify-end">
+                                    <button 
+                                        @click="item.showMap = !item.showMap" 
+                                        class="text-xs font-semibold py-2 px-4 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors flex items-center gap-2 focus:ring-2 focus:ring-slate-500"
+                                        :aria-expanded="item.showMap.toString()"
+                                        aria-controls="map-iframe"
+                                    >
+                                        {{ item.showMap ? 'Hide Navigator' : '🗺️ Venue Navigator' }}
+                                    </button>
+                                </div>
+
+                                <!-- Dynamic Google Maps Embed -->
+                                <transition name="fade">
+                                    <div v-if="item.showMap" class="mt-4 rounded-xl overflow-hidden h-48 sm:h-56 bg-slate-900 border border-slate-700/50 shadow-inner relative group">
+                                        <div v-if="!mapsKey" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-slate-900 z-20">
+                                            <span class="text-2xl mb-2">🔑</span>
+                                            <p class="text-xs text-slate-400">Google Maps API Key missing in backend. Map cannot be rendered.</p>
+                                        </div>
+                                        <iframe
+                                            v-if="mapsKey"
+                                            id="map-iframe"
+                                            title="Map location for session"
+                                            width="100%"
+                                            height="100%"
+                                            style="border:0;"
+                                            loading="lazy"
+                                            allowfullscreen
+                                            referrerpolicy="no-referrer-when-downgrade"
+                                            :src="getMapUrl(item.session.location)">
+                                        </iframe>
+                                    </div>
+                                </transition>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </transition>
+        </section>
+
+        <!-- Global Mingler Section -->
+        <section class="glass-panel p-5 sm:p-7 rounded-2xl shadow-xl transition hover:shadow-2xl hover:bg-slate-800/60 duration-300 border-t-4 border-t-indigo-500">
+            <div class="mb-5">
+                <div class="flex items-center gap-3 mb-1">
+                    <span class="text-2xl" aria-hidden="true">🌐</span>
+                    <h2 class="font-outfit text-xl sm:text-2xl font-bold text-white tracking-wide">Global Mingler</h2>
+                </div>
+                <p class="text-slate-400 text-sm leading-relaxed">Break language barriers during face-to-face networking. Enter your text and instantly translate it for your peers.</p>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row mb-4">
+                <div class="w-full sm:w-1/3">
+                    <label for="langSelect" class="sr-only">Target Language</label>
+                    <select id="langSelect" v-model="transData.target" class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-3 sm:py-3.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner appearance-none cursor-pointer">
+                        <option value="es">🇪🇸 Spanish</option>
+                        <option value="fr">🇫🇷 French</option>
+                        <option value="de">🇩🇪 German</option>
+                        <option value="zh">🇨🇳 Chinese</option>
+                        <option value="hi">🇮🇳 Hindi</option>
+                        <option value="ja">🇯🇵 Japanese</option>
+                    </select>
+                </div>
+                <div class="w-full sm:w-2/3">
+                    <label for="translateInput" class="sr-only">Type English text here</label>
+                    <div class="relative flex items-center">
+                        <input 
+                            type="text" 
+                            id="translateInput"
+                            v-model="transData.text" 
+                            @keyup.enter="translateText"
+                            class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl pl-4 pr-12 pt-3 pb-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-inner h-[50px] sm:h-[52px]" 
+                            placeholder="I'd love to connect on LinkedIn..." 
+                        />
+                        <button 
+                            @click="translateText" 
+                            :disabled="loading.trans || !transData.text.trim()"
+                            class="absolute right-2 p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition transform active:scale-95"
+                            aria-label="Translate message"
+                        >
+                            <svg v-if="loading.trans" class="animate-spin text-white w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Translation Result Panel -->
+            <transition name="fade">
+                <div v-if="transResult" class="mt-4 p-5 rounded-xl bg-gradient-to-br from-indigo-900/40 to-slate-900/80 border border-indigo-500/30 flex flex-col items-center text-center shadow-lg">
+                    <span class="text-[10px] uppercase font-bold text-indigo-400 tracking-widest mb-2 border-b border-indigo-500/30 pb-1 w-full max-w-[150px]">Live Translation</span>
+                    <p class="text-xl sm:text-2xl font-light text-white leading-relaxed font-outfit px-2" v-html="transResult"></p>
+                </div>
+            </transition>
+        </section>
+    </div>
+    {% endraw %}
+
+    <!-- Pass backend properties via Jinja safely outside of Vue parsing -->
+    <script>
+        const BACKEND_SCHEDULE = {{ MOCK_SCHEDULE | tojson }};
+        const GOOGLE_MAPS_KEY = "{{ maps_key }}";
+    </script>
+    
+    <script>
+        const { createApp, ref, reactive } = Vue
+
+        createApp({
+            setup() {
+                // Shared loading state
+                const loading = reactive({ roi: false, trans: false });
+                
+                // ROI Optimizer State
+                const goal = ref('');
+                const schedule = ref([]);
+                const errorMsg = ref('');
+                const mapsKey = ref(GOOGLE_MAPS_KEY);
+
+                // Global Mingler State
+                const transData = reactive({ text: '', target: 'es' });
+                const transResult = ref('');
+
+                // Map rendering helper function
+                const getMapUrl = (location) => {
+                    const query = encodeURIComponent(`conference center ${location}`);
+                    return `https://www.google.com/maps/embed/v1/place?key=${mapsKey.value}&q=${query}&zoom=17`;
+                };
+
+                const generateItinerary = async () => {
+                    if (!goal.value.trim()) return;
+                    loading.roi = true;
+                    errorMsg.value = '';
+                    schedule.value = [];
+
+                    try {
+                        const res = await fetch('/api/optimize_roi', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ goal: goal.value })
+                        });
+                        
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to generate itinerary');
+                        
+                        // Hydrate the model IDs with local full data from our DB simulation
+                        schedule.value = data.map(item => {
+                            const foundSession = BACKEND_SCHEDULE.sessions.find(s => s.id === item.id) || { title: "Unknown", time: "TBD", location: "TBD" };
+                            return { ...item, session: foundSession, showMap: false };
+                        });
+                        
+                    } catch (e) {
+                        errorMsg.value = e.message;
+                    } finally {
+                        loading.roi = false;
+                    }
+                };
+
+                const translateText = async () => {
+                    if (!transData.text.trim()) return;
+                    loading.trans = true;
+                    transResult.value = '';
+
+                    try {
+                        const res = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: transData.text, target: transData.target })
+                        });
+                        
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Translation API down');
+                        
+                        transResult.value = data.translatedText;
+                    } catch (e) {
+                        transResult.value = `<span class="text-red-400 text-sm">Error: ${e.message}</span>`;
+                    } finally {
+                        loading.trans = false;
+                        // Minor UX flourish, we don't clear transData.text so user can correct typos
+                    }
+                };
+
+                return {
+                    goal, loading, schedule, errorMsg, mapsKey, generateItinerary, getMapUrl,
+                    transData, transResult, translateText
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
